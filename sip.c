@@ -33,22 +33,39 @@
 #include <sys/types.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
 #include <security/mac/mac_policy.h>
 
 static struct mtx sip_mtx;
 
-/* An array of paths to protect from modification. */
-static const char *protected_paths[] = { "/sbin", "/bin", "/usr", "/lib", "/usr/include", "/usr/sbin" };
+//static LIST_HEAD(sip_hash_head)
 
-static int get_pathname_file(struct *vp, char **name, char **freebuf)
+/* An array of default paths to protect from modification. */
+//static const char *protected_paths[] = { "/sbin", "/bin", "/usr", "/lib", "/usr/include", "/usr/sbin" };
+
+static int
+sip_check_filepath(struct vnode *vp)
 {
+	int error = 0;
+	char *fullpath = NULL;
+	char *freepath = NULL;
 
+    /* Get the file or directory path name. */
+	error = vn_fullpath_global(curthread, vp, &fullpath, &freepath);
+	if(error)
+	    return (error);
 
-	return (0);
+	if (freepath)
+		free(freepath, M_TEMP);
+
+    return (0);
 }
 
-static int get_pathname_dir(struct *dvp, char **name)
+static int
+sip_check_dirpath(struct vnode *dvp)
 {
+
 	return (0);
 }
 
@@ -72,28 +89,28 @@ static int
 sip_check_access(struct ucred *cred, struct vnode *vp,
 	             struct label *vplabel, accmode_t accmode)
 {
-    return (0);
+    return (sip_check_filepath(vp));
 }
 
 static int 
 sip_check_chroot(struct ucred *cred, struct vnode *dvp, 
 	             struct label *dvplabel)
 {
-	return (0);
+	return (sip_check_dirpath(dvp));
 }
 
 static int
 sip_check_create(struct ucred *cred, struct vnode *dvp, struct label *dvplabel,
 		         struct componentname *cnp, struct vattr *vap)
 {
-	return (0);
+	return (sip_check_dirpath(dvp));
 }
 
 static int
 sip_check_deleteacl(struct ucred *cred, struct vnode *vp, 
 	                struct label *vplabel, acl_type_t type)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int
@@ -101,7 +118,7 @@ sip_check_deleteextattr(struct ucred *cred, struct vnode *vp,
 	                    struct label *vplabel, int attrnamespace, 
 	                    const char *name)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int 
@@ -109,21 +126,21 @@ sip_check_link(struct ucred *cred, struct vnode *dvp,
 	           struct label *dvplabel, struct vnode *vp, struct label *label,
 	           struct componentname *cnp)
 {
-    return (0);
+    return (sip_check_dirpath(dvp));
 }
 
 static int 
 sip_check_mmap(struct ucred *cred, struct vnode *vp, 
 	           struct label *label, int prot, int flags)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int 
 sip_check_open(struct ucred *cred, struct vnode *vp,
 	           struct label *vplabel, accmode_t accmode)
 {
-    return (0);
+    return (sip_check_filepath(vp));
 }
 
 static int
@@ -132,7 +149,7 @@ sip_check_rename_from(struct ucred *cred, struct vnode *dvp,
 	                  struct label *vplabel, struct componentname *cnp)
 {
 
-	return (0);
+	return (sip_check_dirpath(vp));
 }
 
 static int
@@ -141,7 +158,7 @@ sip_check_rename_to(struct ucred *cred, struct vnode *dvp,
 	                struct label *vplabel, int samedir,
 		            struct componentname *cnp)
 {
-	return (0);
+	return (sip_check_dirpath(dvp));
 }
 
 static int
@@ -149,7 +166,7 @@ sip_check_setacl(struct ucred *cred, struct vnode *vp,
 	             struct label *vplabel, acl_type_t type,
 		         struct acl *acl)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int
@@ -157,56 +174,86 @@ sip_check_setextattr(struct ucred *cred, struct vnode *vp,
 	                 struct label *vplabel, int attrnamespace, 
 	                 const char *name)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int
 sip_check_setflags(struct ucred *cred, struct vnode *vp,
 	               struct label *vplabel, u_long flags)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int
 sip_check_setmode(struct ucred *cred, struct vnode *vp, 
 	              struct label *vplabel, mode_t mode)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int
 sip_check_setowner(struct ucred *cred, struct vnode *vp, 
 	               struct label *vplabel, uid_t uid, gid_t gid)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int
 sip_check_setutimes(struct ucred *cred, struct vnode *vp, struct label *vplabel,
 		            struct timespec atime, struct timespec mtime)
 {
-	return (0);
+	return (sip_check_filepath(vp));
 }
 
 static int
 sip_check_unlink(struct ucred *cred, struct vnode *dvp, struct label *dvplabel,
 		         struct vnode *vp, struct label *vplabel, struct componentname *cnp)
 {
-	return (0);
+	return (sip_check_dirpath(dvp));
 }
 
 static int
 sip_check_write(struct ucred *active_cred, struct ucred *file_cred, 
 	            struct vnode *vp, struct label *vplabel)
+{	
+	return (sip_check_filepath(vp));
+}
+
+static int
+sip_check_kld_load(struct ucred *cred, struct vnode *vp, struct label *vlabel)
 {
+    return (0);
+}
+
+static int
+sip_check_debug(struct ucred *cred, struct proc *p)
+{
+
+	return (0);
+}
+
+static int
+sip_check_sched(struct ucred *cred, struct proc *p)
+{
+
+	return (0);
+}
+
+static int
+sip_check_signal(struct ucred *cred, struct proc *proc, int signum)
+{
+
 	return (0);
 }
 
 /* The MAC entry points we want to handle. */
 static struct mac_policy_ops sip_ops = {
 
+    /* Our Policy init and teardown functions. */
 	.mpo_init = init_sip,
 	.mpo_destroy = destroy_sip,
+
+	/* Path related entry point checks. */
 	.mpo_vnode_check_access = sip_check_access,
 	.mpo_vnode_check_chroot = sip_check_chroot,
 	.mpo_vnode_check_create = sip_check_create,
@@ -224,7 +271,16 @@ static struct mac_policy_ops sip_ops = {
 	.mpo_vnode_check_setowner = sip_check_setowner,
 	.mpo_vnode_check_setutimes = sip_check_setutimes,
 	.mpo_vnode_check_unlink = sip_check_unlink,
-	.mpo_vnode_check_write = sip_check_write
+	.mpo_vnode_check_write = sip_check_write,
+
+	/* Kernel module entry point checks. */
+	.mpo_kld_check_load = sip_check_kld_load,
+
+    /* Proccess entry point checks. */
+	.mpo_proc_check_debug = sip_check_debug,
+	.mpo_proc_check_sched = sip_check_sched,
+	.mpo_proc_check_signal = sip_check_signal
+
 };
 
 /* Declare the MAC framework policy. */
