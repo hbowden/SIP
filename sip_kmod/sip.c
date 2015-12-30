@@ -31,15 +31,28 @@
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/types.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <security/mac/mac_policy.h>
 
-static struct mtx sip_mtx;
+static struct rwlock sip_rw;
 
-//static LIST_HEAD(sip_hash_head)
+struct sip_policy
+{
+	char *path;
+
+    LIST_ENTRY(sip_policy) entries;	
+};
+
+MALLOC_DECLARE(M_SIP);
+
+MALLOC_DEFINE(M_SIP, "sip buffer", "SIP hashtable entry buffer");
+
+static LIST_HEAD(sip_list_head, sip_policy) *table;
+static u_long table_mask;
 
 /* An array of default paths to protect from modification. */
 //static const char *protected_paths[] = { "/sbin", "/bin", "/usr", "/lib", "/usr/include", "/usr/sbin" };
@@ -72,7 +85,11 @@ sip_check_dirpath(struct vnode *dvp)
 static void 
 init_sip(struct mac_policy_conf *mpc)
 {
-    mtx_init(&sip_mtx, "System integrity protection lock", NULL, MTX_DEF);
+	/* Init the reader writer lock. */
+    rw_init(&sip_rw, "System integrity protection lock");
+
+    /* Init the hash table. */
+    table = hashinit(1024, M_SIP, &table_mask);
 
 	return;
 }
@@ -80,7 +97,9 @@ init_sip(struct mac_policy_conf *mpc)
 static void 
 destroy_sip(struct mac_policy_conf *mpc)
 {
-    mtx_destroy(&sip_mtx);
+    rw_destroy(&sip_rw);
+
+    hashdestroy(table, M_SIP, table_mask);
 
 	return;
 }
