@@ -42,7 +42,7 @@ static struct rwlock sip_rw;
 
 struct sip_policy
 {
-	char *path;
+    char *path;
 
     LIST_ENTRY(sip_policy) entries;	
 };
@@ -85,13 +85,13 @@ sip_check_dirpath(struct vnode *dvp)
 static void 
 init_sip(struct mac_policy_conf *mpc)
 {
-	/* Init the reader writer lock. */
+    /* Init the reader writer lock. */
     rw_init(&sip_rw, "System integrity protection lock");
 
     /* Init the hash table. */
     table = hashinit(1024, M_SIP, &table_mask);
 
-	return;
+    return;
 }
 
 static void 
@@ -101,7 +101,7 @@ destroy_sip(struct mac_policy_conf *mpc)
 
     hashdestroy(table, M_SIP, table_mask);
 
-	return;
+    return;
 }
 
 static int 
